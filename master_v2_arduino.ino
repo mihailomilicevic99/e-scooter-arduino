@@ -377,7 +377,12 @@ void loop() {
       counter = 0;
       String ref_token = getToken();
       if(ref_token!=""){
-        blocked = true;
+        if(deleteToken()==true){
+          blocked = true;
+        }
+        else{
+          blocked  = false;
+        }
       }
     }
     else{
