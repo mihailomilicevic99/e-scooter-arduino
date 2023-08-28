@@ -3,9 +3,10 @@
 
 
 
-String old_longitude = "";
-String old_latitude = "";
-bool blocked = true; 
+String old_longitude = "";  //tracking longitude changes
+String old_latitude = "";   //tracking latitude changes
+bool blocked = true;        //scooter locked/unlocked
+int counter = 0;            //counts loop cycles - to avoid sendign too many http requests
 
 
 // Function to extract a field from a string based on a delimiter
@@ -96,8 +97,7 @@ void sendCoordinatesViaGsm(float longitude, float latitude){
 
 
 String getToken(){
-
-String response = "";
+  String response = "";
   
       while (!sendCommandAndWaitForReply("AT+HTTPPARA=\"URL\",\" https://fb87-87-116-163-22.ngrok-free.app/api/scooters/token/1\"", "OK")){}
       delay(1000);
@@ -160,14 +160,14 @@ String response = "";
 
 // Function to check if a point is inside a polygon
 bool checkForBlackZone(float longitude, float latitude){
-    //Tasmajdan coords
-float pentagonVerticesX[] = {44.8055, 44.8091, 44.8091, 44.8055, 44.8038}; //latitude
-float pentagonVerticesY[] = {20.4652, 20.4652, 20.4842, 20.4842, 20.4805};  // longitude
-int numVertices = 5;  // Number of vertices in the pentagon
+  //Tasmajdan coords
+  float pentagonVerticesX[] = {44.8055, 44.8091, 44.8091, 44.8055, 44.8038};  //latitude
+  float pentagonVerticesY[] = {20.4652, 20.4652, 20.4842, 20.4842, 20.4805};  // longitude
+  int numVertices = 5;                                                        // Number of vertices in the pentagon
 
-//Zeleno brdo coords
-//float pentagonVerticesX[] = {44.7676992, 44.795, 44.801, 44.794, 44.788}; //latitude
-//float pentagonVerticesY[] = {20.5317853333, 20.530, 20.510, 20.495, 20.500};  // longitude
+  //Zeleno brdo coords
+  //float pentagonVerticesX[] = {44.7676992, 44.795, 44.801, 44.794, 44.788};     //latitude
+  //float pentagonVerticesY[] = {20.5317853333, 20.530, 20.510, 20.495, 20.500};  // longitude
 
 
 
@@ -210,19 +210,17 @@ float calculateDecimalCoords(String coord){
 
 
 
-
-
-
   
 
 void setup() {
   Serial.println("Hello");
-  pinMode(6, INPUT_PULLUP); //button
-  pinMode(5, OUTPUT);  //motor controller
-  Serial1.begin(9600); // GPRS interface
-  Serial.begin(9600); // GPS interface
-  Serial2.begin(115200); //interfaace with Arduino Uno
+  pinMode(6, INPUT_PULLUP);   //button
+  pinMode(5, OUTPUT);         //motor controller
+  Serial1.begin(9600);        // GPRS interface
+  Serial.begin(9600);         // GPS interface
+  Serial2.begin(115200);      //interfaace with Arduino Uno
   blocked = true;
+  counter = 0;
 
 
 
@@ -325,36 +323,75 @@ void loop() {
     }
   }
 
-    //--------------------------------------------------------------------------------------------------
-    //------------------------------------------ END GPS -----------------------------------------------
-    //--------------------------------------------------------------------------------------------------
+  //--------------------------------------------------------------------------------------------------
+  //------------------------------------------ END GPS -----------------------------------------------
+  //--------------------------------------------------------------------------------------------------
 
+
+
+
+  //--------------------------------------------------------------------------------------------------
+  //------------------------------------------ NFC unlocking -----------------------------------------------
+  //--------------------------------------------------------------------------------------------------
 
   if(Serial2.available()){
     String nfcMessage = Serial2.readStringUntil('\n');
     nfcMessage.trim();
     Serial.println(nfcMessage);
 
-    if(nfcMessage == "NFC mobile!"){
+    /*if(nfcMessage == "NFC mobile!"){
       Serial.println("Unblocking...");
       blocked = false;
-    }
+    }*/
 
-    /*String ref_token = getToken();
-      if(message==ref_token){
-        if(deleteToken()==true){
-          blocked = false;
-        }
-        else{
-          blocked = true;
-        }
+    String ref_token = getToken();
+    if(message==ref_token){
+      if(deleteToken()==true){
+        blocked = false;
       }
       else{
         blocked = true;
-      }*/
+      }
+    }
+    else{
+      blocked = true;
+    }
   }
 
 
+
+  //--------------------------------------------------------------------------------------------------
+  //------------------------------------------ End NFC unlocking -----------------------------------------------
+  //--------------------------------------------------------------------------------------------------
+
+
+
+
+  //--------------------------------------------------------------------------------------------------
+  //----------------------------------------------locking scooter-------------------------------------
+  //--------------------------------------------------------------------------------------------------
+
+
+  if(blocked==false){
+    if(counter == 15){
+      counter = 0;
+      String ref_token = getToken();
+      if(ref_token!=""){
+        blocked = true;
+      }
+    }
+    else{
+      counter = counter + 1;
+    }
+  }
+  else{
+    counter = 0;
+  }
+
+
+  //--------------------------------------------------------------------------------------------------
+  //--------------------------------------------End locking scooter-------------------------------------
+  //--------------------------------------------------------------------------------------------------
 
  
 
